@@ -6,7 +6,7 @@
           
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
           
-      <title>Launch Indicator</title>
+      <title>Launch Button</title>
           <!-- Tailwind CSS CDN -->
           <script src="https://cdn.tailwindcss.com"></script>
           <!-- Inter font from Google Fonts -->
@@ -25,7 +25,7 @@
          
                  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
          
-                 import { getFirestore, collection, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+                 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
          
          
          
@@ -45,13 +45,7 @@
          
                      collection,
          
-                     onSnapshot,
-         
-                     query,
-         
-                     orderBy,
-         
-                     limit
+                     addDoc,
          
                  };
          
@@ -80,7 +74,7 @@
           <script type="text/babel">
                  // Access React and ReactDOM from global scope
          
-                 const { useState, useEffect } = React;
+                 const { useState, useEffect, useRef } = React;
          
                  const ReactDOM = window.ReactDOM; // Access ReactDOM from global scope
          
@@ -102,13 +96,7 @@
          
                      collection,
          
-                     onSnapshot,
-         
-                     query,
-         
-                     orderBy,
-         
-                     limit
+                     addDoc,
          
                  } = window.firebase;
          
@@ -123,8 +111,7 @@
                      const [auth, setAuth] = useState(null);
          
                      const [userId, setUserId] = useState(null);
-
-                     const [isAuthReady, setIsAuthReady] = useState(false);
+         
          
                      // Firebase initialization and authentication
          
@@ -161,8 +148,6 @@
                              setDb(firestoreDb);
          
                              setAuth(firebaseAuth);
-
-                             setIsAuthReady(true);
          
                              signInAnonymously(firebaseAuth)
          
@@ -199,8 +184,8 @@
                             <nav className="bg-gray-800 p-4 shadow-lg">
                                 <div className="container mx-auto flex justify-between items-center">
                                     <div className="flex space-x-4">
-                                        <a href="./button.html" className="px-4 py-2 rounded-lg font-semibold text-gray-300 hover:bg-gray-700 hover:text-white">Button Page</a>
-                                        <a href="./indicator.html" className="px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white shadow-md">Indicator Page</a>
+                                        <a href="./button.html" className="px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white shadow-md">Button Page</a>
+                                        <a href="./indicator.html" className="px-4 py-2 rounded-lg font-semibold text-gray-300 hover:bg-gray-700 hover:text-white">Indicator Page</a>
                                     </div>
                                     {userId && (
                                         <div className="text-gray-300 text-sm md:text-base bg-gray-700 px-3 py-1 rounded-full">
@@ -210,105 +195,107 @@
                                 </div>
                             </nav>
                             <main className="flex-grow">
-                                <IndicatorPage db={db} userId={userId} isAuthReady={isAuthReady} />
+                                <ButtonPage db={db} userId={userId} />
                             </main>
                          </div>
                      );
                  };
          
-                 // Component for the Indicator Page
+                 // Component for the Button Page
          
-                 const IndicatorPage = ({ db, userId, isAuthReady }) => {
+                 const ButtonPage = ({ db, userId }) => {
          
-                     const [launchEvents, setLaunchEvents] = useState([]);
+                     const [message, setMessage] = useState('');
          
-                     useEffect(() => {
+                     const messageTimeoutRef = useRef(null);
          
-                         if (!db || !isAuthReady) {
+                     const handleLaunch = async () => {
          
-                             console.log("Waiting for DB and Auth to be ready for IndicatorPage...");
+                         if (!db || !userId) {
+         
+                             setMessage('Database or user not ready. Please wait...');
+         
+                             clearTimeout(messageTimeoutRef.current);
+         
+                             messageTimeoutRef.current = setTimeout(() => setMessage(''), 3000);
          
                              return;
          
                          }
          
-                         const appIdForFirestore = "launch-2a69e";
+                         try {
          
-                         const launchEventsCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/launchEvents`);
+                             const appIdForFirestore = "launch-2a69e";
          
-                         const q = query(launchEventsCollectionRef, orderBy('timestamp', 'desc'), limit(5));
+                             const launchEventsCollectionRef = collection(db, `artifacts/${appIdForFirestore}/public/data/launchEvents`);
          
-                         const unsubscribe = onSnapshot(q, (snapshot) => {
+                             await addDoc(launchEventsCollectionRef, {
          
-                             const events = [];
+                                 timestamp: new Date().toISOString(),
          
-                             snapshot.forEach((doc) => {
-         
-                                 events.push({ id: doc.id, ...doc.data() });
+                                 userId: userId,
          
                              });
          
-                             setLaunchEvents(events);
+                             setMessage('Launch event recorded!');
          
-                         }, (error) => {
+                             clearTimeout(messageTimeoutRef.current);
          
-                             console.error("Error listening to launch events:", error);
+                             messageTimeoutRef.current = setTimeout(() => setMessage(''), 3000);
          
-                         });
+                         } catch (error) {
          
-                         return () => unsubscribe();
+                             console.error("Error adding launch event:", error);
          
-                     }, [db, isAuthReady]);
+                             setMessage('Failed to record launch event. Check Firebase config and rules.');
+         
+                             clearTimeout(messageTimeoutRef.current);
+         
+                             messageTimeoutRef.current = setTimeout(() => setMessage(''), 3000);
+         
+                         }
+         
+                     };
          
                      return (
          
-                         <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-indigo-800 p-4">
+                         <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-400 to-purple-600 p-4">
          
                              <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-8 text-center drop-shadow-lg">
          
-                                 Launch Indicator Page
+                                 Button Control Page
          
                              </h1>
          
-                             {launchEvents.length === 0 ? (
+                             <button
          
-                                 <p className="text-xl text-white opacity-80">No launch events recorded yet.</p>
+                                 onClick={handleLaunch}
          
-                             ) : (
+                                 className="relative px-12 py-6 text-3xl font-bold text-white bg-green-600 rounded-full shadow-2xl
          
-                                 <div className="bg-white bg-opacity-10 backdrop-filter backdrop-blur-sm rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-md">
+                                            hover:bg-green-700 transform hover:scale-105 transition-all duration-300 ease-in-out
          
-                                     <h2 className="text-2xl font-semibold text-white mb-4 border-b border-white border-opacity-30 pb-2">
+                                            focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-75
          
-                                         Recent Launch Events
+                                            active:bg-green-800 active:scale-95 overflow-hidden group"
          
-                                     </h2>
+                             >
          
-                                     <ul className="space-y-3">
+                                 <span className="relative z-10">Launch</span>
          
-                                         {launchEvents.map((event) => (
+                                 <span className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
          
-                                             <li key={event.id} className="bg-white bg-opacity-20 rounded-lg p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-md">
+                                 <span className="absolute inset-0 border-4 border-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
          
-                                                 <span className="text-lg font-medium text-white">
+                             </button>
          
-                                                     {new Date(event.timestamp).toLocaleString()}
+                             {message && (
          
-                                                 </span>
+                                 <p className="mt-6 text-xl text-white bg-black bg-opacity-30 px-4 py-2 rounded-lg shadow-md animate-fade-in">
          
-                                                 <span className="text-sm text-gray-200 mt-1 sm:mt-0 sm:ml-4">
+                                     {message}
          
-                                                     by User: {event.userId ? event.userId.substring(0, 8) + '...' : 'Unknown'}
-         
-                                                 </span>
-         
-                                             </li>
-         
-                                         ))}
-         
-                                     </ul>
-         
-                                 </div>
+                                 </p>
          
                              )}
          
