@@ -281,7 +281,7 @@
          
                                                  <span className="text-sm text-gray-200 mt-1 sm:mt-0 sm:ml-4">
          
-                                                     by User: {event.userId ? event.userId.substring(0, 8) + '...' : 'Unknown'}
+                                                     by User: {event.email ? event.email : (event.userId ? event.userId.substring(0, 8) + '...' : 'Unknown')}
          
                                                  </span>
          
